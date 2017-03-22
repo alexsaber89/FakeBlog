@@ -4,7 +4,7 @@ using System.Linq;
 using System.Web;
 using FakeBlog.Models;
 
-namespace FakeBlog.DAL
+namespace FakeBlog.DAL.Repository
 {
     public class FakeBlogRepository : IFakeBlogRepository
     {

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FakeBlog.DAL
+namespace FakeBlog.Controllers.Contracts
 {
     public interface IFakeBlogRepository
     {
