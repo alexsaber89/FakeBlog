@@ -26,19 +26,21 @@ namespace FakeBlog.DAL.Repository
             try
             {
                 var addPostCommand = _blogConnection.CreateCommand();
-                addPostCommand.CommandText = "Insert into Post(PostTitle,Owner_Id, PostContent) values(@name,@ownerId)";
+                addPostCommand.CommandText = @"
+                    INSERT INTO Posts(Title,AuthorId,Content)
+                    VALUES(@name,@ownerId,@content)";
 
-                var postTitleParameter = new SqlParameter("postTitle", SqlDbType.VarChar);
+                var postTitleParameter = new SqlParameter("title", SqlDbType.VarChar);
                 postTitleParameter.Value = name;
                 addPostCommand.Parameters.Add(postTitleParameter);
 
-                var ownerParameter = new SqlParameter("owner", SqlDbType.Int);
-                ownerParameter.Value = owner.Id;
-                addPostCommand.Parameters.Add(ownerParameter);
-
-                var postContentParameter = new SqlParameter("postContent", SqlDbType.VarChar);
+                var postContentParameter = new SqlParameter("content", SqlDbType.VarChar);
                 postContentParameter.Value = content;
                 addPostCommand.Parameters.Add(postContentParameter);
+
+                var authorParameter = new SqlParameter("authorId", SqlDbType.Int);
+                authorParameter.Value = owner.Id;
+                addPostCommand.Parameters.Add(authorParameter);
 
                 addPostCommand.ExecuteNonQuery();
             }
@@ -55,24 +57,25 @@ namespace FakeBlog.DAL.Repository
 
         public bool DeletePost(int postId)
         {
-            _blogConnection.Open();
-
             try
             {
                 var removePostCommand = _blogConnection.CreateCommand();
-                removePostCommand.CommandText = @"Delete From Post Where PostId = @postId";
+                removePostCommand.CommandText = @"
+                    DELETE
+                    FROM Post
+                    WHERE PostId = @postId";
 
                 var postTitleParameter = new SqlParameter("postId", SqlDbType.Int);
                 postTitleParameter.Value = postId;
                 removePostCommand.Parameters.Add(postTitleParameter);
 
-                removePostCommand.ExecuteNonQuery();
-            }
+                _blogConnection.Open();
+                var rowsAffected = removePostCommand.ExecuteNonQuery();
 
-            catch (SqlException ex)
-            {
-                Debug.WriteLine(ex.Message);
-                Debug.WriteLine(ex.StackTrace);
+                if (rowsAffected != 1)
+                {
+                    throw new Exception($"Query didn't work.  {rowsAffected} rows were affected.");
+                }
             }
 
             finally
@@ -115,20 +118,29 @@ namespace FakeBlog.DAL.Repository
 
         public void EditPostContent(int postId, string editedContent)
         {
-            _blogConnection.Open();
-
             try
             {
                 var editPostContentCommand = _blogConnection.CreateCommand();
                 editPostContentCommand.CommandText = @"
-                    Update Post 
-                    Set Content = @EditedContent
-                    Where postId = @postId";
+                    UPDATE Post 
+                    SET Content = @EditedContent
+                    WHERE PostId = @id";
+
                 var contentParameter = new SqlParameter("EditedContent", SqlDbType.VarChar);
                 contentParameter.Value = editedContent;
                 editPostContentCommand.Parameters.Add(contentParameter);
 
-                editPostContentCommand.ExecuteNonQuery();
+                var idParam = new SqlParameter("id", SqlDbType.Int);
+                idParam.Value = postId;
+                editPostContentCommand.Parameters.Add(idParam);
+
+                _blogConnection.Open();
+                var rowsAffected = editPostContentCommand.ExecuteNonQuery();
+
+                if (rowsAffected != 1)
+                {
+                    throw new Exception("Query didn't work");
+                }
             }
 
             catch (SqlException ex)
@@ -194,28 +206,98 @@ namespace FakeBlog.DAL.Repository
 
         public bool PublishDraftPost(int postId)
         {
-            Post postToPublish = Context.Posts.FirstOrDefault(post => post.PostID == postId);
-            if (postToPublish != null)
+            try
             {
-                postToPublish.PostIsDraft = false;
-                Context.SaveChanges();
-                // Return true if post exists
+                var getPostCommand = _blogConnection.CreateCommand();
+                getPostCommand.CommandText = @"
+                    UPDATE Posts
+                    SET IsDraft = 0
+                    WHERE PostId = @id";
+
+                var postIdParameter = new SqlParameter("postId", SqlDbType.Bit);
+                postIdParameter.Value = postId;
+                getPostCommand.Parameters.Add(postIdParameter);
+
+                _blogConnection.Open();
+                var matchingPosts = getPostCommand.ExecuteReader();
+
                 return true;
             }
-            return false;
+
+            finally
+            {
+                _blogConnection.Close();
+            }
         }
 
         public bool UnpublishPost(int postId)
         {
-            Post postToUnpublish = Context.Posts.FirstOrDefault(post => post.PostID == postId);
-            if (postToUnpublish != null)
+            try
             {
-                postToUnpublish.PostIsDraft = true;
-                Context.SaveChanges();
-                // Return true if post exists
+                var getPostCommand = _blogConnection.CreateCommand();
+                getPostCommand.CommandText = @"
+                    UPDATE Posts
+                    SET IsDraft = 1
+                    WHERE PostId = @id";
+
+                var postIdParameter = new SqlParameter("postId", SqlDbType.Bit);
+                postIdParameter.Value = postId;
+                getPostCommand.Parameters.Add(postIdParameter);
+
+                _blogConnection.Open();
+                var matchingPosts = getPostCommand.ExecuteReader();
+
                 return true;
             }
-            return false;
+
+            finally
+            {
+                _blogConnection.Close();
+            }
+        }
+
+        public Post GetPost(int postId)
+        {
+            try
+            {
+                var getPostCommand = _blogConnection.CreateCommand();
+                getPostCommand.CommandText = @"
+                    SELECT PostId,IsDraft,Title,Contents,AuthorId
+                    FROM Posts
+                    WHERE PostId = @postId";
+
+                var postIdParameter = new SqlParameter("postId", SqlDbType.Int);
+                postIdParameter.Value = postId;
+                getPostCommand.Parameters.Add(postIdParameter);
+
+                _blogConnection.Open();
+                var matchingPosts = getPostCommand.ExecuteReader();
+
+                if (matchingPosts.Read())
+                {
+                    return new Post
+                    {
+                        PostID = matchingPosts.GetInt32(0),
+                        PostIsDraft = matchingPosts.GetBoolean(1),
+                        PostTitle = matchingPosts.GetString(2),
+                        PostContent = matchingPosts.GetString(3),
+                        User = new ApplicationUser { Id = matchingPosts.GetString(4) }
+                    };
+                }
+            }
+
+            catch(Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                Debug.WriteLine(ex.StackTrace);
+            }
+
+            finally
+            {
+                _blogConnection.Close();
+            }
+
+            return null;
         }
     }
 }
