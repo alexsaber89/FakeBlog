@@ -9,9 +9,9 @@ namespace FakeBlog.Controllers.Contracts
     interface IEditPost
     {
         // Authors will be able to edit a draft's Title
-        bool EditPostTitle(int postId, string editedTitle);
+        void EditPostTitle(int postId, string editedTitle);
 
         // Authors will be able to edit a draft's Content
-        bool EditPostContent(int postId, string editedContent);
+        void EditPostContent(int postId, string editedContent);
     }
 }

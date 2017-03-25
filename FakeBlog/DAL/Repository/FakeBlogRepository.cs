@@ -4,73 +4,192 @@ using System.Linq;
 using System.Web;
 using FakeBlog.Models;
 using FakeBlog.Controllers.Contracts;
+using System.Data;
+using System.Data.SqlClient;
+using System.Diagnostics;
 
 namespace FakeBlog.DAL.Repository
 {
     public class FakeBlogRepository : ICreatePost, IDeletePost, IEditDraftStatus, IEditPost, IPostQuery
     {
-        public FakeBlogContext Context { get; set; }
+        IDbConnection _blogConnection;
 
-        public FakeBlogRepository()
+        public FakeBlogRepository(IDbConnection blogConnection)
         {
-            Context = new FakeBlogContext();
+            _blogConnection = blogConnection;
         }
 
-        public FakeBlogRepository(FakeBlogContext context)
+        public void CreateDraftPost(string name, string content, ApplicationUser owner)
         {
-            Context = context;
-        }
+            _blogConnection.Open();
 
-        public void CreateDraftPost(ApplicationUser owner, string postTitle, string postContent)
-        {
-            Post post = new Post { User = owner, PostTitle = postTitle, PostContent = postContent, PostIsDraft = true };
-            Context.Posts.Add(post);
-            Context.SaveChanges();
+            try
+            {
+                var addPostCommand = _blogConnection.CreateCommand();
+                addPostCommand.CommandText = "Insert into Post(PostTitle,Owner_Id, PostContent) values(@name,@ownerId)";
+
+                var postTitleParameter = new SqlParameter("postTitle", SqlDbType.VarChar);
+                postTitleParameter.Value = name;
+                addPostCommand.Parameters.Add(postTitleParameter);
+
+                var ownerParameter = new SqlParameter("owner", SqlDbType.Int);
+                ownerParameter.Value = owner.Id;
+                addPostCommand.Parameters.Add(ownerParameter);
+
+                var postContentParameter = new SqlParameter("postContent", SqlDbType.VarChar);
+                postContentParameter.Value = content;
+                addPostCommand.Parameters.Add(postContentParameter);
+
+                addPostCommand.ExecuteNonQuery();
+            }
+            catch (SqlException ex)
+            {
+                Debug.WriteLine(ex.Message);
+                Debug.WriteLine(ex.StackTrace);
+            }
+            finally
+            {
+                _blogConnection.Close();
+            }
         }
 
         public bool DeletePost(int postId)
         {
-            Post postToDelete = Context.Posts.FirstOrDefault(post => post.PostID == postId);
-            if (postToDelete != null)
+            _blogConnection.Open();
+
+            try
             {
-                Context.Posts.Remove(postToDelete);
-                Context.SaveChanges();
-                // Return true if post exists
-                return true;
+                var removePostCommand = _blogConnection.CreateCommand();
+                removePostCommand.CommandText = @"Delete From Post Where PostId = @postId";
+
+                var postTitleParameter = new SqlParameter("postId", SqlDbType.Int);
+                postTitleParameter.Value = postId;
+                removePostCommand.Parameters.Add(postTitleParameter);
+
+                removePostCommand.ExecuteNonQuery();
             }
+
+            catch (SqlException ex)
+            {
+                Debug.WriteLine(ex.Message);
+                Debug.WriteLine(ex.StackTrace);
+            }
+
+            finally
+            {
+                _blogConnection.Close();
+            }
+
             return false;
         }
 
-        public bool EditPostTitle(int postId, string editedTitle)
+        public void EditPostTitle(int postId, string editedTitle)
         {
-            Post postTitleToEdit = Context.Posts.FirstOrDefault(post => post.PostID == postId);
-            if (postTitleToEdit != null)
+            _blogConnection.Open();
+
+            try
             {
-                postTitleToEdit.PostTitle = editedTitle;
-                Context.SaveChanges();
-                // Return true if post exists
-                return true;
+                var editPostTitleCommand = _blogConnection.CreateCommand();
+                editPostTitleCommand.CommandText = @"
+                    Update Post 
+                    Set Title = @EditedTitle
+                    Where postId = @postId";
+                var titleParameter = new SqlParameter("EditedTitle", SqlDbType.VarChar);
+                titleParameter.Value = editedTitle;
+                editPostTitleCommand.Parameters.Add(titleParameter);
+
+                editPostTitleCommand.ExecuteNonQuery();
             }
-            return false;
+
+            catch (SqlException ex)
+            {
+                Debug.WriteLine(ex.Message);
+                Debug.WriteLine(ex.StackTrace);
+            }
+
+            finally
+            {
+                _blogConnection.Close();
+            }
         }
 
-        public bool EditPostContent(int postId, string editedContent)
+        public void EditPostContent(int postId, string editedContent)
         {
-            Post postContentToEdit = Context.Posts.FirstOrDefault(post => post.PostID == postId);
-            if (postContentToEdit != null)
+            _blogConnection.Open();
+
+            try
             {
-                postContentToEdit.PostContent = editedContent;
-                Context.SaveChanges();
-                // Return true if post exists
-                return true;
+                var editPostContentCommand = _blogConnection.CreateCommand();
+                editPostContentCommand.CommandText = @"
+                    Update Post 
+                    Set Content = @EditedContent
+                    Where postId = @postId";
+                var contentParameter = new SqlParameter("EditedContent", SqlDbType.VarChar);
+                contentParameter.Value = editedContent;
+                editPostContentCommand.Parameters.Add(contentParameter);
+
+                editPostContentCommand.ExecuteNonQuery();
             }
-            return false;
+
+            catch (SqlException ex)
+            {
+                Debug.WriteLine(ex.Message);
+                Debug.WriteLine(ex.StackTrace);
+            }
+
+            finally
+            {
+                _blogConnection.Close();
+            }
         }
 
-        public List<Post> GetPosts(ApplicationUser owner)
+        public List<Post> GetPosts(string userId)
         {
-            List<Post> posts = Context.Posts.Where(post => post.User.Id == owner.Id).ToList();
-            return posts;
+            _blogConnection.Open();
+
+            try
+            {
+                var getPostCommand = _blogConnection.CreateCommand();
+                getPostCommand.CommandText = @"
+                    SELECT PostId, PostTitle, PostContent, PostIsDraft, Owner_Id 
+                    FROM Post 
+                    WHERE Owner_Id = @userId";
+                var postIdParam = new SqlParameter("userId", SqlDbType.VarChar);
+                postIdParam.Value = userId;
+                getPostCommand.Parameters.Add(postIdParam);
+
+                var reader = getPostCommand.ExecuteReader();
+
+                var posts = new List<Post>();
+                while (reader.Read())
+                {
+                    var post = new Post
+                    {
+                        PostID = reader.GetInt32(0),
+                        PostTitle = reader.GetString(1),
+                        PostContent = reader.GetString(2),
+                        PostIsDraft = reader.GetBoolean(3),
+                        User = new ApplicationUser { Id = reader.GetString(4) }
+                    };
+
+                    posts.Add(post);
+                }
+
+                return posts;
+            }
+
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                Debug.WriteLine(ex.StackTrace);
+            }
+
+            finally
+            {
+                _blogConnection.Close();
+            }
+
+            return new List<Post>();
         }
 
         public bool PublishDraftPost(int postId)

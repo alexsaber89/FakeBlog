@@ -10,6 +10,6 @@ namespace FakeBlog.Controllers.Contracts
     interface ICreatePost
     {
         // Authors will be able to make drafts for blog posts
-        void CreateDraftPost(ApplicationUser owner, string postTitle, string postContent);
+        void CreateDraftPost(string name, string content, ApplicationUser owner);
     }
 }

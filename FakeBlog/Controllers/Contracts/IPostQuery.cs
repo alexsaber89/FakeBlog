@@ -10,6 +10,6 @@ namespace FakeBlog.Controllers.Contracts
     public interface IPostQuery
     {
         // Published posts will be viewable by everyone
-        List<Post> GetPosts(ApplicationUser owner);
+        List<Post> GetPosts(string userId);
     }
 }
