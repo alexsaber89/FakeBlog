@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 using FakeBlog.Models;
+using FakeBlog.Controllers.Contracts;
 
-namespace FakeBlog.DAL
+namespace FakeBlog.DAL.Repository
 {
-    public class FakeBlogRepository : IFakeBlogRepository
+    public class FakeBlogRepository : ICreatePost, IDeletePost, IEditDraftStatus, IEditPost, IPostQuery
     {
         public FakeBlogContext Context { get; set; }
 

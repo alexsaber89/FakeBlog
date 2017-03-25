@@ -186,11 +186,15 @@
     <Compile Include="App_Start\Startup.Auth.cs" />
     <Compile Include="App_Start\WebApiConfig.cs" />
     <Compile Include="Controllers\AccountController.cs" />
+    <Compile Include="Controllers\Contracts\ICreatePost.cs" />
+    <Compile Include="Controllers\Contracts\IDeletePost.cs" />
+    <Compile Include="Controllers\Contracts\IEditDraftStatus.cs" />
+    <Compile Include="Controllers\Contracts\IEditPost.cs" />
     <Compile Include="Controllers\HomeController.cs" />
     <Compile Include="Controllers\ManageController.cs" />
     <Compile Include="DAL\FakeBlogContext.cs" />
-    <Compile Include="DAL\FakeBlogRepository.cs" />
-    <Compile Include="DAL\IFakeBlogRepository.cs" />
+    <Compile Include="DAL\Repository\FakeBlogRepository.cs" />
+    <Compile Include="Controllers\Contracts\IPostQuery.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
